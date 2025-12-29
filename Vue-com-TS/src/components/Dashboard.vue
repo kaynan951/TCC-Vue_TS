@@ -78,7 +78,13 @@
       <div class="grid grid-cols-1 lg:grid-cols-1 gap-6">
         <!-- Table -->
         <div class="bg-white rounded-2xl shadow-lg p-6">
-          <h2 class="text-xl font-semibold mb-4 text-gray-800">Tabela de Resultados ({{ dateRangeTitle }})</h2>
+           <h2 class="text-xl font-semibold mb-4 text-gray-800">
+            {{ 
+              filters.province !== 'All'
+                ? `Tabela de Resultados do estado: ${filters.province} entre (${dateRangeTitle})`
+                : `Tabela de Resultados do Nordeste em: (${dateRangeTitle})`
+            }}
+          </h2>
           <div class="overflow-x-auto">
             <table class="w-full">
               <thead>
@@ -177,105 +183,116 @@ const formatNumber = (num: number): string => {
   return num.toString();
 };
 
-// Helper: format ISO date (YYYY-MM-DD) to DD/MM/YYYY for display
-const formatDateDisplay = (isoDate: string) => {
-  const d = new Date(isoDate);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
+// ===== FORMATAÇÃO E DATAS =====
+
+// Formata data ISO (YYYY-MM-DD) para DD/MM/YYYY
+const formatDateDisplay = (isoDate: string): string => {
+  const [year, month, day] = isoDate.split('-');
   return `${day}/${month}/${year}`;
 };
 
-// Helper: return array of ISO dates (YYYY-MM-DD) for center +/- 3 days
-const getDateRange = (centerIso: string) => {
-  const center = new Date(centerIso);
+// Gera array de 7 datas: 3 dias antes, dia central, 3 dias depois
+const getDateRange = (centerDate: string): string[] => {
   const dates: string[] = [];
-  for (let offset = -2; offset <= 4; offset++) {
-    const d = new Date(center);
-    d.setDate(center.getDate() + offset);
-    dates.push(d.toISOString().slice(0, 10));
+  const center = new Date(centerDate + 'T00:00:00'); // Evita problemas de timezone
+  
+  for (let offset = -3; offset <= 3; offset++) {
+    const date = new Date(center);
+    date.setDate(center.getDate() + offset);
+    dates.push(date.toISOString().slice(0, 10));
   }
+  
   return dates;
 };
 
-// Title for the table showing start - end in DD/MM/YYYY
+// Título da tabela mostrando intervalo de datas
 const dateRangeTitle = computed(() => {
-  try {
-    const arr = getDateRange(filters.specificDate).map(iso => formatDateDisplay(iso));
-    return `${arr[0]} - ${arr[arr.length - 1]}`;
-  } catch (e) {
-    return '';
-  }
+  const dates = getDateRange(filters.specificDate);
+  return `${formatDateDisplay(dates[0]!)} - ${formatDateDisplay(dates[6]!)}`;
 });
 
-// Fetch data for 7-day window (3 before, day, 3 after) and populate tableData.
+// ===== BUSCA DE DADOS =====
+
+// Busca dados de uma data específica
+const fetchDataForDate = async (isoDate: string) => {
+  try {
+    const response = await fetch(
+      `https://covid-api.com/api/reports?date=${isoDate}&iso=${filters.country}`
+    );
+    const json = await response.json();
+    
+    if (!json.data?.length) {
+      return { confirmed: 0, deaths: 0, recovered: 0, active: 0 };
+    }
+
+    // Filtra por província se necessário
+    const filteredData = json.data.filter((item: any) => {
+      if (!item.region) return false;
+      if (filters.province === 'All') return true;
+      return normalizeStr(item.region.province || '') === normalizeStr(filters.province);
+    });
+
+    // Agrega os dados
+    return filteredData.reduce(
+      (acc: any, item: any) => ({
+        confirmed: acc.confirmed + (item.confirmed || 0),
+        deaths: acc.deaths + (item.deaths || 0),
+        recovered: acc.recovered + (item.recovered || 0),
+        active: acc.active + (item.active || 0)
+      }),
+      { confirmed: 0, deaths: 0, recovered: 0, active: 0 }
+    );
+  } catch (error) {
+    console.error(`Erro ao buscar dados para ${isoDate}:`, error);
+    return { confirmed: 0, deaths: 0, recovered: 0, active: 0 };
+  }
+};
+
+// Busca dados da janela de 7 dias
 const fetchCovidData = async () => {
   loading.value = true;
+  
   try {
+    // Gera as 7 datas
     const dates = getDateRange(filters.specificDate);
+    
+    // Faz as 7 requisições em paralelo
+    const results = await Promise.all(
+      dates.map(async (date) => ({
+        date,
+        data: await fetchDataForDate(date)
+      }))
+    );
 
-    const fetchForDate = async (iso: string) => {
-      try {
-        const res = await fetch(`https://covid-api.com/api/reports?date=${iso}&iso=${filters.country}`);
-        const json = await res.json();
-        if (json.data && json.data.length > 0) {
-          // Filtra por estado/province quando aplicável
-          const relevant = json.data.filter((item: any) => {
-            if (!item.region) return false;
-            if (filters.province === 'All') return true;
-            const prov = item.region.province || '';
-            return normalizeStr(prov) === normalizeStr(filters.province);
-          });
-
-          const aggregated = relevant.reduce((acc: any, item: any) => ({
-            confirmed: acc.confirmed + (item.confirmed || 0),
-            deaths: acc.deaths + (item.deaths || 0),
-            recovered: acc.recovered + (item.recovered || 0),
-            active: acc.active + (item.active || 0)
-          }), { confirmed: 0, deaths: 0, recovered: 0, active: 0 });
-
-          return { iso, aggregated };
-        }
-      } catch (err) {
-        console.error('Erro ao buscar dados para', iso, err);
-      }
-      return { iso, aggregated: { confirmed: 0, deaths: 0, recovered: 0, active: 0 } };
-    };
-
-    const results = await Promise.all(dates.map(d => fetchForDate(d)));
-
-    // Sort by iso increasing (oldest -> newest)
-    results.sort((a, b) => a.iso.localeCompare(b.iso));
-
-    tableData.value = results.map(r => ({
-      date: formatDateDisplay(r.iso),
-      cases: formatNumber(r.aggregated.confirmed),
-      deaths: formatNumber(r.aggregated.deaths),
-      recovered: formatNumber(r.aggregated.recovered),
-      active: formatNumber(r.aggregated.active)
+    // Popula a tabela (datas já estão ordenadas)
+    tableData.value = results.map(({ date, data }) => ({
+      date: formatDateDisplay(date),
+      cases: formatNumber(data.confirmed),
+      deaths: formatNumber(data.deaths),
+      recovered: formatNumber(data.recovered),
+      active: formatNumber(data.active)
     }));
 
-    // Update stats using the center date (the selected date)6
-    const centerResult = results.find(r => r.iso === filters.specificDate) ?? results[Math.floor(results.length / 2)];
-    if (centerResult) {
-      stats.total = formatNumber(centerResult.aggregated.confirmed);
-      stats.deaths = formatNumber(centerResult.aggregated.deaths);
-      stats.recovered = formatNumber(centerResult.aggregated.recovered);
-      stats.active = formatNumber(centerResult.aggregated.active);
+    // Atualiza estatísticas usando o dia central (índice 3)
+    const centerData = results[3]!.data;
+    
+    stats.total = formatNumber(centerData.confirmed);
+    stats.deaths = formatNumber(centerData.deaths);
+    stats.recovered = formatNumber(centerData.recovered);
+    stats.active = formatNumber(centerData.active);
 
-      
-      const sc = statsCards.value;
-      if (sc && sc.length >= 4) {
-        sc[0]!.value = stats.total;
-        sc[1]!.value = stats.deaths;
-        sc[2]!.value = stats.recovered;
-        sc[3]!.value = stats.active;
-      }
+    // Atualiza cards de estatísticas
+    const cards = statsCards.value;
+    if (cards?.length >= 4) {
+      cards[0]!.value = stats.total;
+      cards[1]!.value = stats.deaths;
+      cards[2]!.value = stats.recovered;
+      cards[3]!.value = stats.active;
     }
 
     await nextTick();
   } catch (error) {
-    console.error('Erro ao buscar dados da janela de datas:', error);
+    console.error('Erro ao buscar dados:', error);
   } finally {
     loading.value = false;
   }
