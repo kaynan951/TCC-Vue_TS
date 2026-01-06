@@ -9,7 +9,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 class="text-3xl font-bold text-gray-800">Painel COVID-19 no Nordeste</h1>
+          <h1 class="text-3xl font-bold text-gray-800">Painel COVID-19 no Nordeste Brasileiro</h1>
         </div>
       </div>
 
@@ -109,6 +109,44 @@
           </div>
         </div>
       </div>
+      <!-- Footer -->
+      <div class="bg-white rounded-2xl shadow-lg p-6 text-center text-gray-600 flex items-center justify-around  flex-col md:flex-row gap-8">
+        <div class="flex items-center justify-center gap-2">
+          <a 
+            href="https://vuejs.org/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="flex items-center justify-center gap-2 hover:opacity-80 transition-opacity"
+          >
+          <img :src="LogoVue" alt="Vue 3 Logo" class="w-10 h-10" />
+                <span class="font-semibold">Vue 3</span>
+          </a>
+        </div>
+      
+        <div class="flex flex-col items-center justify-center">
+          <div class="mt-2">
+            Desenvolvido com Vue 3, TypeScript e Tailwind CSS.
+          </div>
+          <div class="mt-2">
+            Dados fornecidos por <a href="https://covid-api.com/" target="_blank" class="text-blue-500 underline">COVID-API</a>.
+          </div>
+          <div class="mt-2">
+            Desenvolvedor: Kaynan Pereira de Sousa.
+          </div>
+        </div>
+      
+        <div class="flex items-center justify-center gap-2">
+          <a 
+            href="https://www.typescriptlang.org/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="flex items-center justify-center gap-2 hover:opacity-80 transition-opacity"
+          >
+            <img :src="LogoTS" alt="TypeScript Logo" class="w-10 h-10" />
+            <span class="font-semibold">TypeScript</span>
+          </a>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -117,6 +155,8 @@
 import { ref, reactive, onMounted,nextTick } from 'vue';
 import { computed } from 'vue';
 import type { FilterState, StatsCard, TableRow } from '../types';
+import LogoVue from '../assets/Vue.svg';
+import LogoTS from '../assets/TypeScript.svg';
 
 const loading = ref(false);
 
@@ -298,9 +338,6 @@ const fetchCovidData = async () => {
   }
 };
 
-
-
-// Lifecycle
 onMounted(() => {
   fetchCovidData();
 });
