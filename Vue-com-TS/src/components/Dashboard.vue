@@ -74,9 +74,8 @@
         </div>
       </div>
 
-      <!-- Content Grid -->
+      <!-- Table -->
       <div class="grid grid-cols-1 lg:grid-cols-1 gap-6">
-        <!-- Table -->
         <div class="bg-white rounded-2xl shadow-lg p-6">
            <h2 class="text-xl font-semibold mb-4 text-gray-800">
             {{ 
@@ -176,8 +175,6 @@ const stats = reactive({
 
 
 const tableData = ref<TableRow[]>([]);
-
-// Inicializa os cards com valores padrão (serão atualizados após a requisição)
 const statsCards = ref<StatsCard[]>([
   {
     title: 'Total de Casos',
@@ -209,11 +206,9 @@ const statsCards = ref<StatsCard[]>([
   }
 ]);
 
-// Helper: normaliza strings para comparação sem acentos
 const normalizeStr = (s?: string) =>
   (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-// Methods
 const formatNumber = (num: number): string => {
   if (num >= 1000000) {
     return `${(num / 1000000).toFixed(1)}M`;
@@ -225,16 +220,14 @@ const formatNumber = (num: number): string => {
 
 // ===== FORMATAÇÃO E DATAS =====
 
-// Formata data ISO (YYYY-MM-DD) para DD/MM/YYYY
 const formatDateDisplay = (isoDate: string): string => {
   const [year, month, day] = isoDate.split('-');
   return `${day}/${month}/${year}`;
 };
 
-// Gera array de 7 datas: 3 dias antes, dia central, 3 dias depois
 const getDateRange = (centerDate: string): string[] => {
   const dates: string[] = [];
-  const center = new Date(centerDate + 'T00:00:00'); // Evita problemas de timezone
+  const center = new Date(centerDate + 'T00:00:00');
   
   for (let offset = -3; offset <= 3; offset++) {
     const date = new Date(center);
@@ -245,7 +238,6 @@ const getDateRange = (centerDate: string): string[] => {
   return dates;
 };
 
-// Título da tabela mostrando intervalo de datas
 const dateRangeTitle = computed(() => {
   const dates = getDateRange(filters.specificDate);
   return `${formatDateDisplay(dates[0]!)} - ${formatDateDisplay(dates[6]!)}`;
@@ -253,7 +245,6 @@ const dateRangeTitle = computed(() => {
 
 // ===== BUSCA DE DADOS =====
 
-// Busca dados de uma data específica
 const fetchDataForDate = async (isoDate: string) => {
   try {
     const response = await fetch(
@@ -265,14 +256,12 @@ const fetchDataForDate = async (isoDate: string) => {
       return { confirmed: 0, deaths: 0, recovered: 0, active: 0 };
     }
 
-    // Filtra por província se necessário
     const filteredData = json.data.filter((item: any) => {
       if (!item.region) return false;
       if (filters.province === 'All') return true;
       return normalizeStr(item.region.province || '') === normalizeStr(filters.province);
     });
 
-    // Agrega os dados
     return filteredData.reduce(
       (acc: any, item: any) => ({
         confirmed: acc.confirmed + (item.confirmed || 0),
@@ -288,15 +277,12 @@ const fetchDataForDate = async (isoDate: string) => {
   }
 };
 
-// Busca dados da janela de 7 dias
 const fetchCovidData = async () => {
   loading.value = true;
   
   try {
-    // Gera as 7 datas
     const dates = getDateRange(filters.specificDate);
     
-    // Faz as 7 requisições em paralelo
     const results = await Promise.all(
       dates.map(async (date) => ({
         date,
@@ -304,7 +290,6 @@ const fetchCovidData = async () => {
       }))
     );
 
-    // Popula a tabela (datas já estão ordenadas)
     tableData.value = results.map(({ date, data }) => ({
       date: formatDateDisplay(date),
       cases: formatNumber(data.confirmed),
@@ -313,7 +298,6 @@ const fetchCovidData = async () => {
       active: formatNumber(data.active)
     }));
 
-    // Atualiza estatísticas usando o dia central (índice 3)
     const centerData = results[3]!.data;
     
     stats.total = formatNumber(centerData.confirmed);
@@ -321,7 +305,6 @@ const fetchCovidData = async () => {
     stats.recovered = formatNumber(centerData.recovered);
     stats.active = formatNumber(centerData.active);
 
-    // Atualiza cards de estatísticas
     const cards = statsCards.value;
     if (cards?.length >= 4) {
       cards[0]!.value = stats.total;
