@@ -154,7 +154,7 @@
 import { ref, reactive, onMounted,nextTick } from 'vue';
 import { computed } from 'vue';
 import type { FilterState, StatsCard, TableRow } from '../types';
-import LogoVue from '../assets/Vue.svg';
+import LogoVue from '../assets/vue.svg';
 import LogoTS from '../assets/TypeScript.svg';
 
 const loading = ref(false);
