@@ -15,12 +15,13 @@
 
       <!-- Filters -->
       <div class="bg-white rounded-2xl shadow-lg p-6">
-        <div class="flex items-center justify-between ">
+        <div class="flex items-center justify-between flex-wrap gap-4">
             <h2 class="text-2xl font-semibold text-gray-800 gap-2">Filtros de Busca</h2>
               <div class="flex items-end gap-4 w-full md:w-auto md:flex-row flex-col">
                 <div class="w-full">
                   <label class="block text-sm font-medium text-gray-700 mb-2 flex-wrap">Estado</label>
-                  <select v-model="filters.province" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                  <div class="flex gap-2">
+                    <select v-model="filters.province" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
                     <option value="All">Todos os estados</option>
                     <option value="Alagoas">Alagoas</option>
                     <option value="Bahia">Bahia</option>
@@ -32,6 +33,7 @@
                     <option value="Rio Grande do Norte">Rio Grande do Norte</option>
                     <option value="Sergipe">Sergipe</option>
                   </select>
+                  </div> 
                 </div>
               <div class="w-full">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Data específica</label>
